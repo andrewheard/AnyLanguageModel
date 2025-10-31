@@ -25,6 +25,7 @@ let package = Package(
         .trait(name: "CoreML"),
         .trait(name: "MLX"),
         .trait(name: "Llama"),
+        .trait(name: "FirebaseAILogic"),
         .default(enabledTraits: []),
     ],
     dependencies: [
@@ -35,6 +36,10 @@ let package = Package(
         .package(url: "https://github.com/ml-explore/mlx-swift-examples/", branch: "main"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.0.0"),
         .package(url: "https://github.com/mattt/llama.swift", .upToNextMajor(from: "1.6818.0")),
+        .package(
+            url: "https://github.com/firebase/firebase-ios-sdk.git",
+            branch: "anylanguagemodel"
+        ),
     ],
     targets: [
         .target(
@@ -63,6 +68,11 @@ let package = Package(
                     name: "Llama",
                     package: "llama.swift",
                     condition: .when(traits: ["Llama"])
+                ),
+                .product(
+                    name: "FirebaseAILogic",
+                    package: "firebase-ios-sdk",
+                    condition: .when(traits: ["FirebaseAILogic"])
                 ),
             ]
         ),
