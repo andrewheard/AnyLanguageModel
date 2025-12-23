@@ -14,6 +14,8 @@ public struct GeminiLanguageModel: LanguageModel {
 
     public static let defaultAPIVersion = "v1beta"
 
+    private static let apiKeyHeaderKey = "x-goog-api-key"
+
     /// Custom generation options specific to Gemini models.
     ///
     /// Use this type to configure Gemini-specific features like thinking mode
@@ -114,9 +116,13 @@ public struct GeminiLanguageModel: LanguageModel {
 
     private let tokenProvider: @Sendable () -> String
 
+    private let httpAdditionalHeaders: @Sendable () -> [String: String]
+
     public let apiVersion: String
 
     public let model: String
+
+    private let modelResourceName: String
 
     /// The thinking mode for this model.
     ///
@@ -159,12 +165,14 @@ public struct GeminiLanguageModel: LanguageModel {
     /// - Parameters:
     ///   - baseURL: The base URL for the Gemini API.
     ///   - tokenProvider: A closure that provides the API key.
+    ///   - httpAdditionalHeaders: A dictionary of additional headers to send with requests.
     ///   - apiVersion: The API version to use.
     ///   - model: The model identifier.
     ///   - session: The URL session for network requests.
     public init(
         baseURL: URL = defaultBaseURL,
         apiKey tokenProvider: @escaping @autoclosure @Sendable () -> String,
+        httpAdditionalHeaders: @escaping @autoclosure @Sendable () -> [String: String] = [:],
         apiVersion: String = defaultAPIVersion,
         model: String,
         session: URLSession = URLSession(configuration: .default)
@@ -176,8 +184,10 @@ public struct GeminiLanguageModel: LanguageModel {
 
         self.baseURL = baseURL
         self.tokenProvider = tokenProvider
+        self.httpAdditionalHeaders = httpAdditionalHeaders
         self.apiVersion = apiVersion
         self.model = model
+        self.modelResourceName = GeminiLanguageModel.modelResourceName(model: model)
         self._thinking = .disabled
         self._serverTools = []
         self.urlSession = session
@@ -218,8 +228,10 @@ public struct GeminiLanguageModel: LanguageModel {
 
         self.baseURL = baseURL
         self.tokenProvider = tokenProvider
+        self.httpAdditionalHeaders = { [:] }
         self.apiVersion = apiVersion
         self.model = model
+        self.modelResourceName = GeminiLanguageModel.modelResourceName(model: model)
         self._thinking = thinking
         self._serverTools = serverTools
         self.urlSession = session
@@ -420,9 +432,12 @@ public struct GeminiLanguageModel: LanguageModel {
     }
 
     private func buildHeaders() -> [String: String] {
-        let headers: [String: String] = [
-            "x-goog-api-key": tokenProvider()
-        ]
+        var headers: [String: String] = httpAdditionalHeaders()
+        assert(
+            headers[GeminiLanguageModel.apiKeyHeaderKey] == nil,
+            "Multiple values specified for header key \"\(GeminiLanguageModel.apiKeyHeaderKey)\"."
+        )
+        headers[GeminiLanguageModel.apiKeyHeaderKey] = tokenProvider()
 
         return headers
     }
@@ -453,6 +468,14 @@ public struct GeminiLanguageModel: LanguageModel {
         }
 
         return geminiTools.isEmpty ? nil : geminiTools
+    }
+
+    private static func modelResourceName(model: String) -> String {
+        if model.contains("/") {
+            return model
+        }
+
+        return "models/\(model)"
     }
 }
 
